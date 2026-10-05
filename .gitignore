@@ -1,0 +1,19 @@
+# build outputs
+app/out/
+*.idsig
+
+# never commit signing material
+app/signing/
+*.jks
+*.keystore
+
+# never commit raw Android bugreports
+auto-bugreport*.zip
+bugreport*.zip
+bugreport*.txt
+private/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
