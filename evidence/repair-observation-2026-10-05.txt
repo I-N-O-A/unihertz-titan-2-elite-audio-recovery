@@ -1,0 +1,23 @@
+23:28:31.238  Titan Audio Repair 1.0 bereit. Keine Root-/ADB-Funktionen.
+23:28:44.414  ▶ MIC PROBE
+23:28:44.468  Repair-Engine pid=3566 gestartet
+23:28:44.469  MIC PROBE: 2 s, source=MIC, non-blocking PCM16/48k
+23:28:46.545  MIC result: reads=95 empty=141 samples=91200 peak=235 nonZero=96.40% RMS first=12.7 last=15.4 route=MIC#16
+23:28:46.551  Mic-Probe liefert weiterhin messbare Samples
+23:28:46.632  ✓ MIC PROBE beendet
+23:28:49.697  ▶ MIC PROBE
+23:28:49.713  Repair-Engine pid=3566 gestartet
+23:28:49.714  MIC PROBE: 2 s, source=MIC, non-blocking PCM16/48k
+23:28:51.761  MIC result: reads=95 empty=145 samples=91200 peak=4289 nonZero=96.38% RMS first=7.3 last=15.7 route=MIC#16
+23:28:51.766  Mic-Probe liefert weiterhin messbare Samples
+23:28:51.835  ✓ MIC PROBE beendet
+23:28:54.724  ▶ SPEAKER TEST
+23:28:54.737  Repair-Engine pid=3566 gestartet
+23:28:54.740  SPEAKER TEST: 850-Hz-Ton 1.5 s
+23:28:54.775  Output usage=1 preferred=SPEAKER#3 accepted=true
+23:28:56.307    output route=SPEAKER#3 playState=3
+23:28:56.324  Wenn nichts hörbar war, Output bleibt defekt.
+23:28:56.330  ✓ SPEAKER TEST beendet
+
+Observed outcome from tester:
+Audio worked again after the probe/test sequence. The exact minimal recovery trigger has NOT yet been isolated; it may be the MIC PROBE, the SPEAKER TEST, or their sequence.
