@@ -1,31 +1,139 @@
-# Titan Audio Recovery — Unihertz Titan 2 Elite investigation
+# Titan Audio Repair — Unihertz Titan 2 Elite
 
-Public reproduction package, traces, technical findings and an experimental recovery app for a recurring Android audio failure observed on a **Unihertz Titan 2 Elite**.
+Experimental **no-root / no-ADB recovery app** for a recurring Titan 2 Elite failure where microphone input and speaker/receiver output can stop working together.
 
-## Symptom
+## Download the app
 
-The device can enter a state where **both microphone input and speaker/receiver output stop working** and remain broken across apps. Force-stopping voice apps, toggling Bluetooth, changing routes, and running the built-in Factory Test audio tests do not recover it. A full reboot does.
+**Built APK:** [TitanAudioRepair-1.0-Elite-release.apk](releases/TitanAudioRepair-1.0-Elite-release.apk)
 
-The affected hardware is **Unihertz Titan 2 Elite**. Android reports the product/build as:
+SHA256:
 
 ```text
-Unihertz/Titan_2_EEA/Titan_2:16/BP2A.250605.031.A3/V02.00.04:user/release-keys
+f846268dd8c4dc30b406cb093ca57dfc5183f5e3e10381a3894c1a06e41975b2
 ```
 
-This repository does **not** claim every Titan 2 Elite has this bug.
+**Full source:** [app/](app/)
 
-## Strongest findings
+The source includes `MainActivity.java`, `RepairService.java`, AndroidManifest, resources and a reproducible Android SDK command-line build script.
 
-1. An earlier Perfetto capture showed a ~3 s MediaTek audio mode transition stall around `IPrimaryDevice::setMode()` / `setPhoneState()`.
-2. A later capture taken while audio was already broken showed Android successfully opening input/output streams and continuously submitting PCM, while the physical microphone and speaker were still dead.
-3. A bugreport captured in the failed state repeatedly logged:
+## What the APK does
+
+Titan Audio Repair is a small diagnostic/recovery utility built specifically for the observed **Unihertz Titan 2 Elite** audio lockup.
+
+It requests only:
+
+```text
+android.permission.RECORD_AUDIO
+android.permission.MODIFY_AUDIO_SETTINGS
+```
+
+Main actions:
+
+### MIC PROBE
+
+Opens the built-in microphone as PCM16 / 48 kHz for about 2 seconds and logs:
+
+- successful/empty reads;
+- sample count;
+- peak amplitude;
+- non-zero sample percentage;
+- first/last RMS;
+- routed input device.
+
+This is important because the failed phone can still appear "healthy" to Android while the real signal path is broken.
+
+### SPEAKER TEST
+
+Creates an `AudioTrack`, requests the built-in speaker, and plays an 850 Hz test tone for about 1.5 seconds.
+
+### SAFE REPAIR
+
+Uses public Android audio APIs to try to rebuild the audio path without rebooting:
+
+1. clears the communication device;
+2. returns AudioManager to `MODE_NORMAL`;
+3. unmutes the microphone;
+4. reloads Android sound effects;
+5. serially opens/closes several capture sources;
+6. reopens speaker/voice output paths.
+
+### AGGRESSIVE REPAIR
+
+Runs SAFE REPAIR and additionally exercises:
+
+- transient exclusive audio focus;
+- a short microphone-mute pulse;
+- `MODE_IN_COMMUNICATION` followed by `MODE_NORMAL`;
+- speaker/earpiece communication-device routing;
+- short full-duplex input/output cycles;
+- AEC / noise suppression / AGC creation;
+- an experimental AOSP-style `screen_state` audio parameter pulse.
+
+It does **not** perform NVRAM writes, SmartPA calibration, factory-data modification, root commands or ADB commands.
+
+### Separate repair process
+
+Recovery operations run in an app process named `:repair`. If a vendor audio call blocks, the UI can remain responsive and provides a button to kill the repair process.
+
+## Recommended test order when audio fails
+
+Before rebooting:
+
+1. run **MIC PROBE once**;
+2. immediately test microphone and speaker in another app;
+3. if still broken, run **SPEAKER TEST** and test externally again;
+4. if still broken, run **SAFE REPAIR**;
+5. only then try **AGGRESSIVE REPAIR**;
+6. share the repair log.
+
+This order is intentional: on one real failed-state test, audio recovered after the microphone-probe / speaker-test sequence. We still need more failures to isolate the minimal recovery trigger.
+
+## Observed recovery
+
+One captured run:
+
+```text
+MIC #1: peak=235, nonZero=96.40%, RMS first=12.7 last=15.4
+MIC #2: peak=4289, nonZero=96.38%, RMS first=7.3 last=15.7
+Speaker: preferred SPEAKER#3 accepted=true
+```
+
+After that sequence the tester reported that normal microphone and speaker audio worked again.
+
+This is promising but **not yet proven to be a universal fix**.
+
+---
+
+# Investigation and technical evidence
+
+## Affected device
+
+- **Unihertz Titan 2 Elite**
+- Android 16
+- Build `BP2A.250605.031.A3`
+- Firmware `V02.00.04`
+- Android product string:
+  `Unihertz/Titan_2_EEA/Titan_2:16/BP2A.250605.031.A3/V02.00.04:user/release-keys`
+
+## Failure pattern
+
+- microphone and speaker/receiver can fail together;
+- the failure persists across apps;
+- force-stopping voice apps does not recover it;
+- Bluetooth/route changes did not recover it;
+- Unihertz Factory Test Audio In/Out also fail in the broken state;
+- a full reboot restores audio.
+
+## Strongest bugreport evidence
+
+The failed-state bugreport repeatedly contains:
 
 ```text
 AudioALSAStreamIn: getCapturePosition(), mCaptureHandler == NULL
 StreamHAL: Error from HAL stream in function get_capture_position: No data available
 ```
 
-4. The MediaTek audio HAL native stack showed one thread in:
+The MediaTek HAL stack shows a DSP-stop path waiting in:
 
 ```text
 audioDspStatusUpdate()
@@ -36,7 +144,7 @@ audioDspStatusUpdate()
  -> pthread_join()
 ```
 
-while a corresponding reader thread was inside:
+while a DspRaw reader thread is inside:
 
 ```text
 AudioALSACaptureDataProviderDspRaw::readThread()
@@ -44,53 +152,36 @@ AudioALSACaptureDataProviderDspRaw::readThread()
  -> pcm_hw_ioctl()
 ```
 
-5. The kernel portion of the bugreport showed repeated SCP recovery activity, including **21 `scp_sys_full_reset` events in ~17.94 s**, plus `SCP_EVENT_READY`, audio reset events, and repeated SCP/IPI failures. Important caveat: this reset storm occurred during bugreport collection, so it may reflect or aggravate an already-corrupted state rather than prove the original trigger.
+Kernel/SCP logs also show repeated SCP recovery/reset activity.
+
+See:
+
+- [Technical findings](docs/TECHNICAL_FINDINGS.md)
+- [Vendor report](docs/VENDOR_REPORT.md)
+- [Related public reports](docs/RELATED_REPORTS.md)
+- [Privacy notes](docs/PRIVACY.md)
+- [Repair observation](evidence/repair-observation-2026-10-05.txt)
+
+## Perfetto evidence
+
+An earlier trace captured an approximately 3-second MediaTek audio-mode transition stall around `IPrimaryDevice::setMode()` / `setPhoneState()`.
+
+A later failed-state trace showed Android successfully creating input/output streams and continuously feeding PCM while the physical microphone and speaker remained unusable.
+
+This supports a fault **below normal app-level audio handling**, likely in the MediaTek vendor audio/DSP/SCP recovery path.
 
 ## Working hypothesis
 
-The evidence is most consistent with a **MediaTek SCP / audio-DSP / DspRaw capture recovery failure**, possibly a race or deadlock in the capture shutdown/restart path after an SCP/DSP fault. Android's high-level audio framework can look healthy while the real signal path remains unusable.
+The evidence is most consistent with a **MediaTek SCP / audio-DSP / DspRaw recovery failure**, possibly involving capture shutdown/restart while the DspRaw reader remains blocked lower in the PCM path.
 
-This is a hypothesis, not a vendor-confirmed root cause.
+This is a working diagnosis, not a vendor-confirmed root cause.
 
-## Experimental recovery app
+## Source and build
 
-`Titan Audio Repair` is a small Android app built to exercise only public app-level audio APIs. It requires **no root and no ADB**.
-
-The app can:
-
-- run a 2-second 48 kHz PCM microphone probe;
-- run an 850 Hz speaker test;
-- normalize `AudioManager` communication state;
-- reopen multiple capture sources serially;
-- reopen speaker/earpiece output paths serially;
-- optionally exercise communication mode, AEC/NS/AGC, audio focus and an experimental `screen_state` audio parameter pulse;
-- run recovery work in a separate process that can be killed from the UI if a vendor call hangs.
-
-It does **not** write NVRAM, run SmartPA calibration, modify persistent factory values, or require privileged/root access.
-
-### Observed recovery
-
-During one failed-device test, audio became functional again after running the app's microphone probe(s) followed by the speaker test. The recorded app log is in `evidence/repair-observation-2026-10-05.txt`.
-
-The **minimal recovery trigger is not yet isolated**. It may be the microphone probe, the speaker test, or the sequence. More reproductions are needed.
-
-## Repository layout
-
-```text
-app/                                  clean source; no signing keys
-releases/                             prebuilt APK + hashes/permissions/signature report
-evidence/traces/                      gzip-compressed Perfetto traces
-evidence/bugreport-extracts/          privacy-filtered technical excerpts
-evidence/hubwidget-investigation/     earlier hypothesis + logs/patch; later ruled out as required trigger
-docs/TECHNICAL_FINDINGS.md            detailed chronology and interpretation
-docs/VENDOR_REPORT.md                 ready-to-send Unihertz/MediaTek report
-docs/RELATED_REPORTS.md               related public reports
-docs/PRIVACY.md                       why the raw Android bugreport is not public
+```bash
+cd app
+./build.sh /path/to/android-sdk
 ```
-
-## Build
-
-The project intentionally uses a minimal SDK command-line build script instead of Gradle.
 
 Requirements:
 
@@ -98,25 +189,12 @@ Requirements:
 - Build Tools 35.0.1
 - JDK 11+
 
-```bash
-cd app
-./build.sh /path/to/android-sdk
-```
+No private signing key is included in the repository.
 
-That creates an aligned unsigned APK. To sign it, provide your own keystore through environment variables documented in `app/build.sh`.
+## Privacy
 
-**No private signing key is included in this repository.**
-
-## Safety / disclaimer
-
-This is experimental diagnostic software for a vendor audio bug. Use at your own risk. The aggressive repair path intentionally exercises audio routing and stream lifecycle transitions, but it does not attempt privileged SCP resets or persistent calibration changes.
-
-If you have the same failure, please attach your device model, exact firmware build, whether Factory Test is also silent, and a repair-app log to a GitHub issue.
-
-## Related reports
-
-Public reports show other Unihertz devices and the Titan 2 family have had microphone/audio issues, although no public report found so far matches this exact dual input/output failure with the same MediaTek stack signature. See `docs/RELATED_REPORTS.md`.
+The raw Android bugreport is intentionally not public because Android bugreports may contain account, network, notification, device and other private information. Privacy-filtered technical evidence is published instead.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT.
