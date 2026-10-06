@@ -1,22 +1,25 @@
 # Titan Audio Repair — Unihertz Titan 2 Elite
 
-Eine experimentelle **Repair- und Diagnose-App ohne Root und ohne ADB** für den Fehler, bei dem beim **Unihertz Titan 2 Elite** Mikrofon und Lautsprecher/Receiver gleichzeitig ausfallen können.
+> **Das Problem:** Beim betroffenen **Unihertz Titan 2 Elite** kann der komplette Telefon-Audiopfad plötzlich ausfallen: **Mikrofon und Lautsprecher/Receiver funktionieren gleichzeitig nicht mehr**, und zwar in allen Apps. Selbst die integrierten Unihertz-Factory-Tests für Audio In/Out bleiben dann stumm. Vor dieser App half zuverlässig nur ein **kompletter Neustart**.
+>
+> **Was die App löst:** **Titan Audio Repair** versucht den festhängenden Audiopfad **ohne Neustart, ohne Root und ohne ADB** wieder zu initialisieren. Dazu öffnet und schließt sie Mikrofon- und Lautsprecherpfade gezielt neu, setzt öffentliche Android-Audio-Routen und Modi zurück und bietet eine sichere sowie eine aggressivere Recovery-Sequenz.
+>
+> **Bisheriges Ergebnis:** Bei einem real aufgezeichneten Fehlerzustand kam der normale Ton nach **MIC PROBE + SPEAKER TEST** wieder zurück. Das ist ein sehr guter Hinweis, aber noch ein **experimenteller Workaround** und kein von Unihertz/MediaTek bestätigter dauerhafter Fix.
 
-## APK herunterladen
+## Download
 
 **Fertig gebaute APK:** [TitanAudioRepair-1.0-Elite-release.apk](releases/TitanAudioRepair-1.0-Elite-release.apk)
 
-SHA256:
+**Vollständiger Source:** [app/](app/)
+
+SHA256 der getesteten APK:
 
 ```text
 f846268dd8c4dc30b406cb093ca57dfc5183f5e3e10381a3894c1a06e41975b2
 ```
 
-**Vollständiger Source:** [app/](app/)
+## Was die App konkret macht
 
-Im Source liegen `MainActivity.java`, `RepairService.java`, Manifest, Ressourcen und das reproduzierbare Build-Skript.
-
-## Was die APK macht
 
 Die App versucht den festhängenden Audiopfad **ohne Neustart** durch gezieltes Öffnen, Schließen und Neu-Routen von Android-Audioströmen wieder zu initialisieren.
 
