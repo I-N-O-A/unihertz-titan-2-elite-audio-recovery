@@ -2,9 +2,9 @@
 
 > **The problem:** On the affected **Unihertz Titan 2 Elite**, the entire phone-audio path can suddenly fail: **microphone input and speaker/earpiece output stop working at the same time**, across all apps. Even the built-in Unihertz Factory Test Audio In/Out can be silent. Before this project, a **full reboot was the only reliable recovery**.
 >
-> **What this app does:** **Titan Audio Repair** tries to bring audio back **without rebooting, root, or ADB**. It forces the Android/MediaTek audio path through controlled microphone and speaker re-initialization steps, resets public Android routing/mode state, and provides safe and aggressive recovery sequences.
+> **What this app does:** **Titan Audio Repair** is a diagnostic and recovery-test utility. It forces the Android/MediaTek audio path through controlled microphone/speaker re-initialization steps and records what still works while the phone is broken. **Current testing shows that it does not repair the real fault.**
 >
-> **Current result:** In one captured real failure, normal audio returned after the app's **MIC PROBE + SPEAKER TEST** sequence. This is promising, but it is still an **experimental workaround**, not a vendor-confirmed permanent fix.
+> **Current result:** MIC PROBE, SPEAKER TEST, SAFE REPAIR and AGGRESSIVE REPAIR have all been tried during a confirmed failure. The audio subsystem remained broken. **Only a full phone reboot restores audio.** The app is therefore useful for diagnosis and reproducing the failure, not as a working fix.
 
 ## Download
 
@@ -89,9 +89,9 @@ Before rebooting:
 5. only then try **AGGRESSIVE REPAIR**;
 6. share the repair log.
 
-This order is intentional: on one real failed-state test, audio recovered after the microphone-probe / speaker-test sequence. We still need more failures to isolate the minimal recovery trigger.
+This sequence is now primarily diagnostic. A later confirmed failure showed that none of the app-level recovery paths restored audio. If the device is needed immediately, a full reboot remains the only confirmed recovery.
 
-## Observed recovery
+## Recovery status
 
 One captured run:
 
@@ -101,9 +101,9 @@ MIC #2: peak=4289, nonZero=96.38%, RMS first=7.3 last=15.7
 Speaker: preferred SPEAKER#3 accepted=true
 ```
 
-After that sequence the tester reported that normal microphone and speaker audio worked again.
+A later confirmed failure disproved this as a reliable recovery method. During the fault, repeated MIC PROBE and SPEAKER TEST runs did not restore audio; SAFE REPAIR also reopened all tested capture sources but every source continued to return only zero-valued PCM samples. The tester also tried the remaining repair menu paths without restoring audio.
 
-This is promising but **not yet proven to be a universal fix**.
+**Current conclusion: the app does not repair the underlying failure. A full reboot is still the only confirmed recovery.**
 
 ---
 
