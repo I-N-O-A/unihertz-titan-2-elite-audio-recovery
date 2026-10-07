@@ -1,0 +1,89 @@
+name: Build Titan Audio Repair 1.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "app/**"
+      - ".github/workflows/build-v1.1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Ensure Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.1"
+
+      - name: Generate CI test signing key
+        shell: bash
+        run: |
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/titan-audio-repair-v11.jks" \
+            -storepass "TitanAudioRepair11" \
+            -keypass "TitanAudioRepair11" \
+            -alias titanrepair \
+            -keyalg RSA -keysize 3072 -validity 3650 \
+            -dname "CN=Titan Audio Repair 1.1 CI, O=Open Source Test Build, C=DE"
+
+      - name: Build signed APK
+        shell: bash
+        env:
+          KEYSTORE: ${{ runner.temp }}/titan-audio-repair-v11.jks
+          KEY_ALIAS: titanrepair
+          KEYSTORE_PASS: TitanAudioRepair11
+          KEY_PASS: TitanAudioRepair11
+        run: |
+          chmod +x app/build.sh
+          app/build.sh "$ANDROID_SDK_ROOT"
+
+      - name: Package release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p releases
+          cp app/out/TitanAudioRepair-1.1-signed.apk releases/TitanAudioRepair-1.1-Elite-release.apk
+          rm -f releases/TitanAudioRepair-1.1-Elite-source.zip
+          zip -qr releases/TitanAudioRepair-1.1-Elite-source.zip app \
+            -x "app/out/*" "app/signing/*" "*.jks" "*.keystore"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.1/apksigner" verify --verbose --print-certs \
+            releases/TitanAudioRepair-1.1-Elite-release.apk > releases/TitanAudioRepair-1.1-SIGNATURE.txt
+          {
+            sha256sum releases/TitanAudioRepair-1.1-Elite-release.apk
+            sha256sum releases/TitanAudioRepair-1.1-Elite-source.zip
+          } > releases/TitanAudioRepair-1.1-SHA256.txt
+          cat > releases/TitanAudioRepair-1.1-INSTALL.txt <<'EOF'
+          Titan Audio Repair 1.1 is signed with a CI test key.
+          The private 1.0 signing key was intentionally not published or stored in the repository.
+          If Android reports a signature conflict when installing over 1.0, uninstall 1.0 first and then install 1.1.
+          EOF
+
+      - name: Commit built APK and source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add releases/TitanAudioRepair-1.1-*
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "Build Titan Audio Repair 1.1 APK and source"
+          git push
