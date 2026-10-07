@@ -1,0 +1,3 @@
+<resources>
+    <string name="accessibility_desc">Öffnet ausschließlich das Android-Power-Menü für den bestätigten Neustart-Recovery. Liest keine Fensterinhalte.</string>
+</resources>
