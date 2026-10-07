@@ -27,6 +27,7 @@ public class RepairService extends Service {
     public static final String CMD_SPEAKER_TEST = "SPEAKER TEST";
     public static final String CMD_SAFE = "SAFE REPAIR";
     public static final String CMD_AGGRESSIVE = "AGGRESSIVE REPAIR";
+    public static final String CMD_MTK_VENDOR = "MTK VENDOR REINIT";
     public static final int RESULT_PROGRESS = 1;
     public static final int RESULT_DONE = 2;
     public static final int RESULT_ERROR = 3;
@@ -51,6 +52,7 @@ public class RepairService extends Service {
                 else if (CMD_SPEAKER_TEST.equals(cmd)) speakerTest();
                 else if (CMD_SAFE.equals(cmd)) safeRepair();
                 else if (CMD_AGGRESSIVE.equals(cmd)) aggressiveRepair();
+                else if (CMD_MTK_VENDOR.equals(cmd)) mtkVendorReinit();
                 else throw new IllegalArgumentException("Unbekannter Befehl: " + cmd);
                 send(RESULT_DONE, "✓ " + cmd + " beendet", false);
             } catch (Throwable t) {
@@ -162,6 +164,141 @@ public class RepairService extends Service {
         nap(700);
         normalizeFramework();
         log("AGGRESSIVE fertig. Jetzt Mic-Probe + Lautsprecher-Test ausführen.");
+    }
+
+    /** Targeted MediaTek recovery experiment: restart signalling + real physical input reroute. */
+    private void mtkVendorReinit() {
+        log("MTK 1/5: Framework in neutralen Zustand bringen");
+        normalizeFramework();
+        nap(250);
+
+        log("MTK 2/5: MediaTek Audio-System Neustart-Signal setzen");
+        try {
+            am.setParameters("restarting=true");
+            log("setParameters restarting=true gesendet");
+        } catch (Throwable t) {
+            log("restarting=true nicht möglich: " + shortErr(t));
+        }
+        nap(350);
+
+        log("MTK 3/5: echte Input-Geräte prüfen / Hardware-Roundtrip");
+        AudioDeviceInfo builtin = findDevice(AudioDeviceInfo.TYPE_BUILTIN_MIC, AudioManager.GET_DEVICES_INPUTS);
+        AudioDeviceInfo alternate = findAlternateInputDevice();
+        log("  built-in=" + dev(builtin) + " alternate=" + dev(alternate));
+
+        if (alternate != null) {
+            routeCaptureOnce(alternate, 16000, 500);
+            nap(300);
+            if (builtin != null) {
+                routeCaptureOnce(builtin, 48000, 650);
+                nap(300);
+            }
+        } else {
+            log("  Kein zweites physisches Input-Gerät verbunden; tiefer Routing-Roundtrip übersprungen.");
+            log("  Für diesen Teil z.B. BT-Headset / USB-Headset / kabelgebundenes Headset verbinden.");
+        }
+
+        log("MTK 4/5: MediaTek Neustart-Signal beenden");
+        try {
+            am.setParameters("restarting=false");
+            log("setParameters restarting=false gesendet");
+        } catch (Throwable t) {
+            log("restarting=false nicht möglich: " + shortErr(t));
+        }
+        nap(700);
+
+        try { am.clearCommunicationDevice(); } catch (Throwable ignored) {}
+        try { am.setMode(AudioManager.MODE_NORMAL); } catch (Throwable ignored) {}
+        try { am.setMicrophoneMute(false); } catch (Throwable ignored) {}
+
+        log("MTK 5/5: Ergebnis automatisch prüfen");
+        micProbe();
+        nap(200);
+        speakerTest();
+    }
+
+    private AudioDeviceInfo findAlternateInputDevice() {
+        try {
+            AudioDeviceInfo fallback = null;
+            for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_INPUTS)) {
+                int t = d.getType();
+                log("  Input device: " + dev(d));
+                if (t == AudioDeviceInfo.TYPE_BUILTIN_MIC) continue;
+
+                if (t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                        || t == AudioDeviceInfo.TYPE_USB_DEVICE
+                        || t == AudioDeviceInfo.TYPE_USB_HEADSET
+                        || t == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                        || t == AudioDeviceInfo.TYPE_BLE_HEADSET) {
+                    return d;
+                }
+                if (fallback == null) fallback = d;
+            }
+            return fallback;
+        } catch (Throwable t) {
+            log("Input-Geräte konnten nicht gelesen werden: " + shortErr(t));
+            return null;
+        }
+    }
+
+    private void routeCaptureOnce(AudioDeviceInfo preferred, int rate, int durationMs) {
+        AudioRecord rec = null;
+        try {
+            int min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            AudioFormat fmt = new AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(rate)
+                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .build();
+
+            rec = new AudioRecord.Builder()
+                    .setAudioSource(MediaRecorder.AudioSource.MIC)
+                    .setAudioFormat(fmt)
+                    .setBufferSizeInBytes(Math.max(8192, min > 0 ? min * 2 : 8192))
+                    .build();
+
+            boolean accepted = rec.setPreferredDevice(preferred);
+            log("  routeCapture preferred=" + dev(preferred) + " accepted=" + accepted);
+            if (rec.getState() != AudioRecord.STATE_INITIALIZED) {
+                log("  routeCapture AudioRecord nicht initialisiert");
+                return;
+            }
+
+            rec.startRecording();
+            short[] b = new short[512];
+            long end = SystemClock.elapsedRealtime() + durationMs;
+            int samples = 0, nonZero = 0, peak = 0;
+
+            while (SystemClock.elapsedRealtime() < end) {
+                int n = rec.read(b, 0, b.length, AudioRecord.READ_NON_BLOCKING);
+                if (n > 0) {
+                    samples += n;
+                    for (int i = 0; i < n; i++) {
+                        int a = Math.abs((int)b[i]);
+                        if (a != 0) nonZero++;
+                        if (a > peak) peak = a;
+                    }
+                } else if (n < 0) {
+                    log("  routeCapture read error=" + n);
+                    break;
+                }
+                nap(10);
+            }
+
+            log("  routeCapture actual=" + dev(rec.getRoutedDevice())
+                    + " samples=" + samples + " nonZero=" + nonZero + " peak=" + peak);
+        } catch (Throwable t) {
+            log("  routeCapture " + dev(preferred) + " Fehler: " + shortErr(t));
+        } finally {
+            if (rec != null) {
+                try {
+                    if (rec.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) rec.stop();
+                } catch (Throwable t) {
+                    log("  routeCapture stop: " + shortErr(t));
+                }
+                try { rec.release(); } catch (Throwable ignored) {}
+            }
+        }
     }
 
     private void normalizeFramework() {
