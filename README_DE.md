@@ -116,6 +116,17 @@ Ein späterer, eindeutig bestätigter Fehlerfall hat gezeigt, dass diese Sequenz
 
 ---
 
+## Neu in 1.3 – gezielter MediaTek Vendor-Reinit
+
+Version 1.3 enthält erstmals einen Recovery-Pfad, der sich **technisch von den bisherigen SAFE/AGGRESSIVE-App-Level-Resets unterscheidet**:
+
+- sendet das bei MediaTek beobachtete Audio-System-Neustartsignal `restarting=true` → `restarting=false`;
+- ermittelt die tatsächlich vorhandenen Input-Geräte;
+- wenn ein zweites physisches Input-Gerät (Bluetooth-SCO, USB, Kabel- oder BLE-Headset) verbunden ist, öffnet die App die Aufnahme gezielt darauf und anschließend wieder auf dem eingebauten Mikrofon. Dadurch entsteht ein echter Hardware-Input-Wechsel statt erneut nur `MIC#16 → MIC#16`;
+- führt danach automatisch MIC PROBE und SPEAKER TEST aus.
+
+Bewusst minimal: kein Root, kein ADB, keine NVRAM-/Kalibrierungsänderungen, keine Shell-Kommandos und keine frei erfundenen Vendor-Parameter. **Dieser Recovery-Versuch ist neu und noch nicht als funktionierender Fix bestätigt.**
+
 # Recherche und technische Diagnose
 
 ## Gerät
