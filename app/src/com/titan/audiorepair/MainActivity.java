@@ -2,6 +2,7 @@ package com.titan.audiorepair;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -32,11 +33,20 @@ public class MainActivity extends Activity {
     private static final int REQ_MIC = 10;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StringBuilder log = new StringBuilder();
+
     private TextView status;
+    private TextView faultView;
     private TextView logView;
+    private Button powerButton;
+
     private int repairPid = -1;
     private boolean running = false;
+    private boolean audioFaultConfirmed = false;
     private String pendingCommand = null;
+
+    private final Runnable watchdogRunnable = () -> {
+        if (running) append("Watchdog: Vorgang läuft länger als 45 s. Bei Hänger 'Repair-Prozess stoppen' drücken.");
+    };
 
     private final ResultReceiver receiver = new ResultReceiver(handler) {
         @Override protected void onReceiveResult(int resultCode, Bundle data) {
@@ -44,9 +54,16 @@ public class MainActivity extends Activity {
             if (data.containsKey("pid")) repairPid = data.getInt("pid", -1);
             String msg = data.getString("msg", "");
             if (!msg.isEmpty()) append(msg);
+
+            if (resultCode == RepairService.RESULT_FAULT) {
+                audioFaultConfirmed = true;
+                showConfirmedFault();
+            }
+
             if (resultCode == RepairService.RESULT_DONE || resultCode == RepairService.RESULT_ERROR) {
                 running = false;
                 repairPid = -1;
+                handler.removeCallbacks(watchdogRunnable);
                 refreshStatus();
             }
         }
@@ -57,7 +74,12 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(250,250,250));
         buildUi();
         refreshStatus();
-        append("Titan Audio Repair 1.0 bereit. Keine Root-/ADB-Funktionen.");
+        append("Titan Audio Repair 1.1 bereit. Diagnose + bestätigter Neustart-Recovery.");
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        refreshStatus();
     }
 
     private void buildUi() {
@@ -75,32 +97,53 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("Unihertz Titan 2 Elite • MediaTek Audio/SCP Recovery Lab\nNicht während eines Telefonats ausführen.");
+        sub.setText("Unihertz Titan 2 Elite\nBekannter Fehler: Mic + Speaker können komplett ausfallen. Nur Neustart ist bisher bestätigt.");
         sub.setTextSize(14);
         sub.setTextColor(Color.DKGRAY);
-        sub.setPadding(0,0,0,dp(14));
+        sub.setPadding(0,0,0,dp(12));
         root.addView(sub);
+
+        faultView = new TextView(this);
+        faultView.setTextSize(15);
+        faultView.setTextColor(Color.WHITE);
+        faultView.setBackgroundColor(Color.rgb(183,28,28));
+        faultView.setPadding(dp(12),dp(12),dp(12),dp(12));
+        faultView.setVisibility(View.GONE);
+        root.addView(faultView, new LinearLayout.LayoutParams(-1,-2));
 
         status = new TextView(this);
         status.setTextSize(13);
         status.setTextColor(Color.rgb(30,30,30));
         status.setBackgroundColor(Color.rgb(238,242,246));
         status.setPadding(dp(12),dp(10),dp(12),dp(10));
-        root.addView(status, new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(-1,-2);
+        statusLp.topMargin = dp(8);
+        root.addView(status, statusLp);
 
         addHeader(root, "Diagnose");
         addButton(root, "Mikrofon prüfen (2 s)", v -> startCommand(RepairService.CMD_MIC_PROBE, true));
         addButton(root, "Lautsprecher-Testton", v -> startCommand(RepairService.CMD_SPEAKER_TEST, false));
 
-        addHeader(root, "Recovery");
-        Button safe = addButton(root, "SAFE REPAIR", v -> startCommand(RepairService.CMD_SAFE, true));
-        safe.setTextSize(18);
-        Button aggressive = addButton(root, "AGGRESSIVE REPAIR", v -> startCommand(RepairService.CMD_AGGRESSIVE, true));
-        aggressive.setTextSize(18);
+        addHeader(root, "Bestätigte Wiederherstellung");
+        powerButton = addButton(root, "POWER-MENÜ ÖFFNEN → NEU STARTEN", v -> openPowerMenu());
+        powerButton.setTextSize(17);
+
+        TextView rebootInfo = new TextView(this);
+        rebootInfo.setText("Die bisherigen App-Level-Resets reparieren den echten MediaTek-Audiofehler nicht. Ein vollständiger Neustart ist derzeit die einzige bestätigte Wiederherstellung.");
+        rebootInfo.setTextSize(12);
+        rebootInfo.setTextColor(Color.DKGRAY);
+        rebootInfo.setPadding(0,dp(6),0,dp(8));
+        root.addView(rebootInfo);
+
+        addHeader(root, "Experimente / Diagnose (kein bestätigter Fix)");
+        Button safe = addButton(root, "SAFE REPAIR testen", v -> startCommand(RepairService.CMD_SAFE, true));
+        safe.setTextSize(16);
+        Button aggressive = addButton(root, "AGGRESSIVE REPAIR testen", v -> startCommand(RepairService.CMD_AGGRESSIVE, true));
+        aggressive.setTextSize(16);
         addButton(root, "Hängenden Repair-Prozess stoppen", v -> killRepairProcess());
 
         TextView info = new TextView(this);
-        info.setText("SAFE: AudioManager zurücksetzen + Input/Output-Streams neu öffnen.\nAGGRESSIVE: zusätzlich Communication-Mode, Speaker/Earpiece-Routing, Full-Duplex, AEC/NS/AGC und AOSP-HAL screen_state-Puls. Keine Calibration/NVRAM-Schreibvorgänge.");
+        info.setText("SAFE/AGGRESSIVE bleiben für Diagnose und weitere Forschung erhalten. Sie haben den bestätigten Fehler bisher nicht behoben. Keine Calibration/NVRAM-Schreibvorgänge.");
         info.setTextSize(12);
         info.setTextColor(Color.DKGRAY);
         info.setPadding(0,dp(6),0,dp(8));
@@ -120,7 +163,9 @@ public class MainActivity extends Activity {
         clear.setOnClickListener(v -> { log.setLength(0); logView.setText(""); });
         Button refresh = miniButton("Status");
         refresh.setOnClickListener(v -> refreshStatus());
-        row.addView(share, weight()); row.addView(clear, weight()); row.addView(refresh, weight());
+        row.addView(share, weight());
+        row.addView(clear, weight());
+        row.addView(refresh, weight());
         root.addView(row);
 
         logView = new TextView(this);
@@ -134,6 +179,13 @@ public class MainActivity extends Activity {
         setContentView(scroll);
     }
 
+    private void showConfirmedFault() {
+        faultView.setText("⛔ AUDIO-FEHLER BESTÄTIGT\nAndroid liefert PCM-Buffer, aber nur Null-Samples. Neustart erforderlich.");
+        faultView.setVisibility(View.VISIBLE);
+        powerButton.setText("POWER-MENÜ ÖFFNEN → NEU STARTEN");
+        refreshStatus();
+    }
+
     private void refreshStatus() {
         AudioManager am = (AudioManager)getSystemService(AUDIO_SERVICE);
         StringBuilder s = new StringBuilder();
@@ -145,17 +197,25 @@ public class MainActivity extends Activity {
             AudioDeviceInfo d = am.getCommunicationDevice();
             s.append("Communication device: ").append(d == null ? "default" : deviceName(d)).append('\n');
         }
+        s.append("Audio fault: ").append(audioFaultConfirmed ? "BESTÄTIGT" : "nicht bestätigt").append('\n');
+        s.append("Power-Menü Service: ").append(PowerMenuAccessibilityService.isConnected() ? "bereit" : "nicht aktiviert").append('\n');
         s.append("Repair process: ").append(running ? "läuft (pid " + repairPid + ")" : "idle");
         status.setText(s.toString());
     }
 
     private void startCommand(String command, boolean needsMic) {
-        if (running) { Toast.makeText(this, "Repair läuft bereits", Toast.LENGTH_SHORT).show(); return; }
+        if (running) {
+            Toast.makeText(this, "Vorgang läuft bereits", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (needsMic && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             pendingCommand = command;
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
+
+        handler.removeCallbacks(watchdogRunnable);
+
         Intent i = new Intent(this, RepairService.class);
         i.putExtra("command", command);
         i.putExtra("receiver", receiver);
@@ -164,34 +224,64 @@ public class MainActivity extends Activity {
         append("▶ " + command);
         startService(i);
         refreshStatus();
-        handler.postDelayed(() -> {
-            if (running) append("Watchdog: Repair läuft länger als 45 s. Bei Hänger 'Repair-Prozess stoppen' drücken.");
-        }, 45000);
+        handler.postDelayed(watchdogRunnable, 45000);
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_MIC && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            String cmd = pendingCommand; pendingCommand = null;
+            String cmd = pendingCommand;
+            pendingCommand = null;
             if (cmd != null) startCommand(cmd, false);
         } else if (requestCode == REQ_MIC) {
-            append("Mikrofon-Berechtigung abgelehnt; Input-Recovery kann nicht laufen.");
+            append("Mikrofon-Berechtigung abgelehnt; Input-Diagnose kann nicht laufen.");
         }
     }
 
+    private void openPowerMenu() {
+        if (PowerMenuAccessibilityService.openPowerMenu()) {
+            append("System-Power-Menü geöffnet. Bitte 'Neu starten' wählen.");
+            return;
+        }
+
+        append("Power-Menü-Service noch nicht aktiviert.");
+        new AlertDialog.Builder(this)
+                .setTitle("Power-Menü einmalig freigeben")
+                .setMessage("Android erlaubt normalen Apps keinen direkten Neustart. Optional kann Titan Audio Repair über einen minimalen Accessibility-Service nur das System-Power-Menü öffnen. Der Service liest keine Fensterinhalte.\n\nAktiviere dort 'Titan Audio Repair – Power Menu' und kehre dann zurück.")
+                .setNegativeButton("Abbrechen", null)
+                .setPositiveButton("Accessibility öffnen", (d, which) -> {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                    } catch (Throwable t) {
+                        append("Accessibility-Einstellungen konnten nicht geöffnet werden: " + t);
+                    }
+                })
+                .show();
+    }
+
     private void killRepairProcess() {
+        handler.removeCallbacks(watchdogRunnable);
         if (repairPid > 0 && repairPid != Process.myPid()) {
             append("Kille isolierten Repair-Prozess pid=" + repairPid);
             try { Process.killProcess(repairPid); } catch (Throwable t) { append("Kill fehlgeschlagen: " + t); }
-            running = false; repairPid = -1; refreshStatus();
-        } else append("Kein separater Repair-Prozess bekannt.");
+            running = false;
+            repairPid = -1;
+            refreshStatus();
+        } else {
+            append("Kein separater Repair-Prozess bekannt.");
+        }
     }
 
     private void openFactory() {
         Intent i = new Intent();
         i.setComponent(new ComponentName("com.agui.factorytest", "com.agui.factorytest.ModeSelectorActivity"));
-        try { startActivity(i); append("Factory ModeSelector geöffnet."); }
-        catch (Throwable t) { append("Direktstart Factory nicht möglich: " + t.getClass().getSimpleName()); openDialCode("*#3377#"); }
+        try {
+            startActivity(i);
+            append("Factory ModeSelector geöffnet.");
+        } catch (Throwable t) {
+            append("Direktstart Factory nicht möglich: " + t.getClass().getSimpleName());
+            openDialCode("*#3377#");
+        }
     }
 
     private void openDialCode(String code) {
@@ -199,7 +289,9 @@ public class MainActivity extends Activity {
             Intent i = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(code)));
             startActivity(i);
             append("Dialer mit Code geöffnet: " + code);
-        } catch (Throwable t) { append("Dialer konnte nicht geöffnet werden: " + t); }
+        } catch (Throwable t) {
+            append("Dialer konnte nicht geöffnet werden: " + t);
+        }
     }
 
     private void safeStart(Intent i) {
@@ -229,6 +321,7 @@ public class MainActivity extends Activity {
     }
 
     private static String deviceName(AudioDeviceInfo d) { return typeName(d.getType()) + "#" + d.getId(); }
+
     private static String typeName(int t) {
         switch (t) {
             case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE: return "EARPIECE";
@@ -244,12 +337,41 @@ public class MainActivity extends Activity {
     }
 
     private Button addButton(LinearLayout root, String text, View.OnClickListener l) {
-        Button b = new Button(this); b.setText(text); b.setAllCaps(false); b.setOnClickListener(l);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(52)); lp.topMargin = dp(7);
-        root.addView(b, lp); return b;
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        b.setOnClickListener(l);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(52));
+        lp.topMargin = dp(7);
+        root.addView(b, lp);
+        return b;
     }
-    private Button miniButton(String text) { Button b = new Button(this); b.setText(text); b.setAllCaps(false); b.setMinHeight(dp(46)); return b; }
-    private LinearLayout.LayoutParams weight() { LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1); lp.setMargins(dp(2),0,dp(2),0); return lp; }
-    private void addHeader(LinearLayout root, String text) { TextView v = new TextView(this); v.setText(text); v.setTextSize(17); v.setTextColor(Color.BLACK); v.setGravity(Gravity.START); v.setPadding(0,dp(18),0,dp(2)); root.addView(v); }
-    private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+
+    private Button miniButton(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        b.setMinHeight(dp(46));
+        return b;
+    }
+
+    private LinearLayout.LayoutParams weight() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(50), 1);
+        lp.setMargins(dp(2),0,dp(2),0);
+        return lp;
+    }
+
+    private void addHeader(LinearLayout root, String text) {
+        TextView v = new TextView(this);
+        v.setText(text);
+        v.setTextSize(17);
+        v.setTextColor(Color.BLACK);
+        v.setGravity(Gravity.START);
+        v.setPadding(0,dp(18),0,dp(2));
+        root.addView(v);
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
 }
