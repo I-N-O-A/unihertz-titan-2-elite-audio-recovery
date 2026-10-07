@@ -29,7 +29,8 @@ public class RepairService extends Service {
     public static final String CMD_AGGRESSIVE = "AGGRESSIVE REPAIR";
     public static final int RESULT_PROGRESS = 1;
     public static final int RESULT_DONE = 2;
-    public static final int RESULT_ERROR = 3;\n    public static final int RESULT_FAULT = 4;
+    public static final int RESULT_ERROR = 3;
+    public static final int RESULT_FAULT = 4;
 
     private ResultReceiver rr;
     private AudioManager am;
