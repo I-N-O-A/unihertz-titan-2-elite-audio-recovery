@@ -1,0 +1,3 @@
+Titan Audio Repair 1.1 is signed with a CI test key.
+The private 1.0 signing key was intentionally not published or stored in the repository.
+If Android reports a signature conflict when installing over 1.0, uninstall 1.0 first and then install 1.1.
