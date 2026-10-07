@@ -1,0 +1,128 @@
+name: Establish persistent release signing
+
+on:
+  push:
+    paths:
+      - ".github/workflows/establish-signing.yml"
+      - "app/build.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  establish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Ensure Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort | tail -1)"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.1"
+
+      - name: Create persistent signing key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p signing releases "$RUNNER_TEMP/signing-secret"
+          PASS="$(openssl rand -hex 32)"
+          ALIAS="titanrepair"
+          P12="$RUNNER_TEMP/TitanAudioRepair-release.p12"
+
+          keytool -genkeypair -noprompt             -storetype PKCS12             -keystore "$P12"             -storepass "$PASS"             -keypass "$PASS"             -alias "$ALIAS"             -keyalg RSA -keysize 3072 -validity 10950             -dname "CN=Titan Audio Repair Release, O=I-N-O-A Open Source, C=DE"
+
+          keytool -exportcert -rfc             -keystore "$P12"             -storepass "$PASS"             -alias "$ALIAS"             > signing/TitanAudioRepair-release-cert.pem
+
+          keytool -list -v             -keystore "$P12"             -storepass "$PASS"             -alias "$ALIAS"             > signing/TitanAudioRepair-release-cert-info.txt
+
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt             -in "$P12"             -out signing/TitanAudioRepair-release.p12.enc             -pass pass:"$PASS"
+
+          printf "SIGNING_PASSWORD=%s\nSIGNING_ALIAS=%s\n" "$PASS" "$ALIAS"             > "$RUNNER_TEMP/signing-secret/TitanAudioRepair-signing-secret.txt"
+
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+          echo "alias=$ALIAS" >> "$GITHUB_OUTPUT"
+          echo "p12=$P12" >> "$GITHUB_OUTPUT"
+
+      - name: Build and sign 1.2
+        shell: bash
+        env:
+          KEYSTORE: ${{ steps.key.outputs.p12 }}
+          KEY_ALIAS: ${{ steps.key.outputs.alias }}
+          KEYSTORE_PASS: ${{ steps.key.outputs.pass }}
+          KEY_PASS: ${{ steps.key.outputs.pass }}
+        run: |
+          set -euo pipefail
+          chmod +x app/build.sh
+          app/build.sh "$ANDROID_SDK_ROOT"
+          cp app/out/TitanAudioRepair-1.2-signed.apk releases/TitanAudioRepair-1.2-Elite-release.apk
+
+          rm -f releases/TitanAudioRepair-1.2-Elite-source.zip
+          zip -qr releases/TitanAudioRepair-1.2-Elite-source.zip app             -x "app/out/*" "app/signing/*" "*.jks" "*.keystore" "*.p12"
+
+          {
+            sha256sum releases/TitanAudioRepair-1.2-Elite-release.apk
+            sha256sum releases/TitanAudioRepair-1.2-Elite-source.zip
+            sha256sum signing/TitanAudioRepair-release.p12.enc
+            sha256sum signing/TitanAudioRepair-release-cert.pem
+          } > releases/TitanAudioRepair-1.2-SHA256.txt
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.1/apksigner" verify --verbose --print-certs             releases/TitanAudioRepair-1.2-Elite-release.apk             > releases/TitanAudioRepair-1.2-SIGNATURE.txt
+
+          cat > signing/README.md <<'EOF'
+          # Titan Audio Repair release signing
+
+          The **public certificate** and certificate fingerprints are committed here.
+
+          The private PKCS#12 keystore is committed only in **AES-256-CBC encrypted form**:
+          `TitanAudioRepair-release.p12.enc`.
+
+          The decryption password is intentionally **not** stored in this public repository.
+          Keep the separate `TitanAudioRepair-signing-secret.txt` file private.
+
+          To decrypt locally:
+
+          ```bash
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000             -in signing/TitanAudioRepair-release.p12.enc             -out TitanAudioRepair-release.p12
+          ```
+
+          Use the password from the private signing-secret file.
+
+          Future APK builds must use this exact keystore. Do not generate a new signing key.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TitanAudioRepair-signing-secret
+          path: ${{ runner.temp }}/signing-secret/TitanAudioRepair-signing-secret.txt
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TitanAudioRepair-1.2-Elite
+          path: releases/TitanAudioRepair-1.2-Elite-release.apk
+          retention-days: 30
+
+      - name: Commit persistent signing material and release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add signing releases/TitanAudioRepair-1.2-*
+          git commit -m "Establish persistent signing and publish Titan Audio Repair 1.2"
+          git push
