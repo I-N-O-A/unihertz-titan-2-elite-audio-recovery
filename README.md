@@ -119,6 +119,17 @@ A later confirmed failure disproved this as a reliable recovery method. During t
 
 ---
 
+## New in 1.3 — targeted MediaTek vendor reinit
+
+Version 1.3 adds one recovery path that is **technically different** from the previous SAFE/AGGRESSIVE app-level cycling:
+
+- sends the MediaTek audio-system restart signalling pair `restarting=true` → `restarting=false`;
+- enumerates real input devices;
+- when an alternate physical input (Bluetooth SCO, USB, wired or BLE headset) is connected, it opens capture on that device and then explicitly routes capture back to the built-in microphone, forcing a real hardware input-device transition instead of reopening the same `MIC#16`;
+- automatically reruns MIC PROBE and SPEAKER TEST after the sequence.
+
+This is deliberately narrow: no root, ADB, NVRAM/calibration writes, shell commands, or unverified vendor parameters. **It is an experimental recovery candidate and is not yet confirmed to fix the fault.**
+
 # Investigation and technical evidence
 
 ## Affected device
