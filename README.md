@@ -8,15 +8,27 @@
 
 ## Download
 
-**Built APK:** [TitanAudioRepair-1.0-Elite-release.apk](releases/TitanAudioRepair-1.0-Elite-release.apk)
+**Current built APK (v1.1):** [TitanAudioRepair-1.1-Elite-release.apk](releases/TitanAudioRepair-1.1-Elite-release.apk)
 
-**Source code:** [app/](app/)
+**Source ZIP (v1.1):** [TitanAudioRepair-1.1-Elite-source.zip](releases/TitanAudioRepair-1.1-Elite-source.zip)
 
-SHA256 of the tested APK:
+**Live source:** [app/](app/)
+
+SHA256:
 
 ```text
-f846268dd8c4dc30b406cb093ca57dfc5183f5e3e10381a3894c1a06e41975b2
+f03dc55d3f6655c931cd89978a285df20e2181e21af8b04c75eb70ff50da69ec  APK
+7e5792db5fa36407af8bf74a36da9e99160083711beae78a1e4c99052fc08078  source ZIP
 ```
+
+## What v1.1 does now
+
+- detects the confirmed fault signature when Android still delivers PCM buffers but every microphone sample is exactly zero;
+- shows **AUDIO FAULT CONFIRMED — RESTART REQUIRED**;
+- adds **OPEN POWER MENU → RESTART**;
+- uses an optional minimal Accessibility service only to open Android's native power menu; it does not retrieve window content;
+- fixes the stale 45-second watchdog message;
+- keeps SAFE/AGGRESSIVE paths only as diagnostic experiments because they do not repair the confirmed fault.
 
 ## What the app actually does
 
