@@ -2,9 +2,9 @@
 
 > **Das Problem:** Beim betroffenen **Unihertz Titan 2 Elite** kann der komplette Telefon-Audiopfad plötzlich ausfallen: **Mikrofon und Lautsprecher/Receiver funktionieren gleichzeitig nicht mehr**, und zwar in allen Apps. Selbst die integrierten Unihertz-Factory-Tests für Audio In/Out bleiben dann stumm. Vor dieser App half zuverlässig nur ein **kompletter Neustart**.
 >
-> **Was die App löst:** **Titan Audio Repair** versucht den festhängenden Audiopfad **ohne Neustart, ohne Root und ohne ADB** wieder zu initialisieren. Dazu öffnet und schließt sie Mikrofon- und Lautsprecherpfade gezielt neu, setzt öffentliche Android-Audio-Routen und Modi zurück und bietet eine sichere sowie eine aggressivere Recovery-Sequenz.
+> **Was die App macht:** **Titan Audio Repair** ist aktuell ein Diagnose- und Recovery-Testwerkzeug. Sie erzwingt verschiedene Mikrofon-/Lautsprecher-Reinitialisierungen und protokolliert genau, was im Fehlerzustand noch funktioniert. **Nach den aktuellen Tests behebt die App den echten Fehler jedoch nicht.**
 >
-> **Bisheriges Ergebnis:** Bei einem real aufgezeichneten Fehlerzustand kam der normale Ton nach **MIC PROBE + SPEAKER TEST** wieder zurück. Das ist ein sehr guter Hinweis, aber noch ein **experimenteller Workaround** und kein von Unihertz/MediaTek bestätigter dauerhafter Fix.
+> **Aktueller Stand:** MIC PROBE, SPEAKER TEST, SAFE REPAIR und AGGRESSIVE REPAIR wurden während eines bestätigten Ausfalls ausprobiert. Der Audiopfad blieb defekt. **Nur ein vollständiger Neustart des Smartphones stellt Audio wieder her.** Die App ist damit derzeit Diagnosewerkzeug, kein funktionierender Fix.
 
 ## Download
 
@@ -88,9 +88,9 @@ Vor einem Neustart:
 6. erst zuletzt **AGGRESSIVE REPAIR**;
 7. Log teilen.
 
-Der Grund: Bei einem echten Fehlerzustand kam Audio nach der Mic-Probe-/Speaker-Test-Sequenz bereits wieder zurück. Wir wollen jetzt herausfinden, welcher minimale Schritt wirklich heilt.
+Diese Reihenfolge dient inzwischen vor allem der Diagnose. Ein später bestätigter Fehlerfall zeigte, dass keiner der App-Recovery-Pfade Audio wiederherstellt. Wenn das Gerät sofort benötigt wird, bleibt ein kompletter Neustart die einzige bestätigte Lösung.
 
-## Bisherige Recovery-Beobachtung
+## Aktueller Recovery-Status
 
 ```text
 MIC #1: peak=235, nonZero=96.40%, RMS first=12.7 last=15.4
@@ -98,9 +98,9 @@ MIC #2: peak=4289, nonZero=96.38%, RMS first=7.3 last=15.7
 Speaker: SPEAKER#3 akzeptiert
 ```
 
-Danach funktionierten normales Mikrofon und Lautsprecher wieder.
+Ein späterer, eindeutig bestätigter Fehlerfall hat gezeigt, dass diese Sequenz **keine zuverlässige Reparatur** ist. Während des Fehlers blieben MIC PROBE und SPEAKER TEST wirkungslos; SAFE REPAIR öffnete sämtliche getesteten Audioquellen neu, aber alle lieferten weiterhin ausschließlich Null-Samples. Auch die übrigen Repair-Menüpunkte stellten Audio nicht wieder her.
 
-Das ist ein sehr guter Hinweis, aber noch **kein universell bestätigter Fix**.
+**Aktueller Schluss: Die App repariert den zugrunde liegenden Fehler nicht. Nur ein kompletter Neustart behebt ihn zuverlässig.**
 
 ---
 
