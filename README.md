@@ -8,9 +8,9 @@
 
 ## Download
 
-**Current built APK (v1.1):** [TitanAudioRepair-1.1-Elite-release.apk](releases/TitanAudioRepair-1.1-Elite-release.apk)
+**Current built APK (v1.2):** [TitanAudioRepair-1.2-Elite-release.apk](releases/TitanAudioRepair-1.2-Elite-release.apk)
 
-**Source ZIP (v1.1):** [TitanAudioRepair-1.1-Elite-source.zip](releases/TitanAudioRepair-1.1-Elite-source.zip)
+**Source ZIP (v1.2):** [TitanAudioRepair-1.2-Elite-source.zip](releases/TitanAudioRepair-1.2-Elite-source.zip)
 
 **Live source:** [app/](app/)
 
@@ -21,7 +21,7 @@ f03dc55d3f6655c931cd89978a285df20e2181e21af8b04c75eb70ff50da69ec  APK
 7e5792db5fa36407af8bf74a36da9e99160083711beae78a1e4c99052fc08078  source ZIP
 ```
 
-## What v1.1 does now
+## What v1.2 does now
 
 - detects the confirmed fault signature when Android still delivers PCM buffers but every microphone sample is exactly zero;
 - shows **AUDIO FAULT CONFIRMED — RESTART REQUIRED**;
