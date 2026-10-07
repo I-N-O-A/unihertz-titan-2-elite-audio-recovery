@@ -29,7 +29,7 @@ mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/dex"
   --min-sdk-version 31 \
   --target-sdk-version 35 \
   --version-code 1 \
-  --version-name 1.0
+  --version-name 1.1
 
 find "$ROOT/src" "$OUT/gen" -name '*.java' -print0 | \
   xargs -0 javac -source 11 -target 11 -encoding UTF-8 -classpath "$ANDROID_JAR" -d "$OUT/classes"
