@@ -8,9 +8,9 @@
 
 ## Download
 
-**Aktuelle APK (v1.1):** [TitanAudioRepair-1.1-Elite-release.apk](releases/TitanAudioRepair-1.1-Elite-release.apk)
+**Aktuelle APK (v1.2):** [TitanAudioRepair-1.2-Elite-release.apk](releases/TitanAudioRepair-1.2-Elite-release.apk)
 
-**Source-ZIP (v1.1):** [TitanAudioRepair-1.1-Elite-source.zip](releases/TitanAudioRepair-1.1-Elite-source.zip)
+**Source-ZIP (v1.2):** [TitanAudioRepair-1.2-Elite-source.zip](releases/TitanAudioRepair-1.2-Elite-source.zip)
 
 **Aktueller Source:** [app/](app/)
 
@@ -21,7 +21,7 @@ f03dc55d3f6655c931cd89978a285df20e2181e21af8b04c75eb70ff50da69ec  APK
 7e5792db5fa36407af8bf74a36da9e99160083711beae78a1e4c99052fc08078  Source-ZIP
 ```
 
-## Was v1.1 jetzt macht
+## Was v1.2 jetzt macht
 
 - erkennt den bestätigten Fehler, wenn Android weiterhin PCM-Buffer liefert, aber wirklich jedes Mikrofonsample 0 ist;
 - zeigt **AUDIO-FEHLER BESTÄTIGT – NEUSTART ERFORDERLICH**;
