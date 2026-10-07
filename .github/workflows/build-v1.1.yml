@@ -1,4 +1,4 @@
-name: Build Titan Audio Repair 1.1
+name: Build Titan Audio Repair (persistent signing)
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [ main ]
     paths:
       - "app/**"
+      - "signing/**"
       - ".github/workflows/build-v1.1.yml"
 
 permissions:
@@ -14,6 +15,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SIGNING_PASSWORD: ${{ secrets.TITAN_SIGNING_PASSWORD }}
+      SIGNING_ALIAS: titanrepair
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,59 +39,66 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.1"
 
-      - name: Generate CI test signing key
+      - name: Restore persistent release keystore
         shell: bash
         run: |
-          keytool -genkeypair -noprompt \
-            -keystore "$RUNNER_TEMP/titan-audio-repair-v11.jks" \
-            -storepass "TitanAudioRepair11" \
-            -keypass "TitanAudioRepair11" \
-            -alias titanrepair \
-            -keyalg RSA -keysize 3072 -validity 3650 \
-            -dname "CN=Titan Audio Repair 1.1 CI, O=Open Source Test Build, C=DE"
+          set -euo pipefail
+          if [ -z "${SIGNING_PASSWORD:-}" ]; then
+            echo "::error::Repository secret TITAN_SIGNING_PASSWORD is missing. Refusing to generate a new signing key."
+            exit 20
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000             -in signing/TitanAudioRepair-release.p12.enc             -out "$RUNNER_TEMP/TitanAudioRepair-release.p12"             -pass pass:"$SIGNING_PASSWORD"
 
-      - name: Build signed APK
+      - name: Build with persistent signing key
         shell: bash
         env:
-          KEYSTORE: ${{ runner.temp }}/titan-audio-repair-v11.jks
-          KEY_ALIAS: titanrepair
-          KEYSTORE_PASS: TitanAudioRepair11
-          KEY_PASS: TitanAudioRepair11
+          KEYSTORE: ${{ runner.temp }}/TitanAudioRepair-release.p12
+          KEY_ALIAS: ${{ env.SIGNING_ALIAS }}
+          KEYSTORE_PASS: ${{ env.SIGNING_PASSWORD }}
+          KEY_PASS: ${{ env.SIGNING_PASSWORD }}
         run: |
+          set -euo pipefail
           chmod +x app/build.sh
           app/build.sh "$ANDROID_SDK_ROOT"
 
-      - name: Package release files
+      - name: Package and verify
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p releases
-          cp app/out/TitanAudioRepair-1.1-signed.apk releases/TitanAudioRepair-1.1-Elite-release.apk
-          rm -f releases/TitanAudioRepair-1.1-Elite-source.zip
-          zip -qr releases/TitanAudioRepair-1.1-Elite-source.zip app \
-            -x "app/out/*" "app/signing/*" "*.jks" "*.keystore"
-          "$ANDROID_SDK_ROOT/build-tools/35.0.1/apksigner" verify --verbose --print-certs \
-            releases/TitanAudioRepair-1.1-Elite-release.apk > releases/TitanAudioRepair-1.1-SIGNATURE.txt
-          {
-            sha256sum releases/TitanAudioRepair-1.1-Elite-release.apk
-            sha256sum releases/TitanAudioRepair-1.1-Elite-source.zip
-          } > releases/TitanAudioRepair-1.1-SHA256.txt
-          cat > releases/TitanAudioRepair-1.1-INSTALL.txt <<'EOF'
-          Titan Audio Repair 1.1 is signed with a CI test key.
-          The private 1.0 signing key was intentionally not published or stored in the repository.
-          If Android reports a signature conflict when installing over 1.0, uninstall 1.0 first and then install 1.1.
-          EOF
+          VERSION="$(grep -- '--version-name' app/build.sh | awk '{print $2}')"
+          SIGNED="app/out/TitanAudioRepair-${VERSION}-signed.apk"
+          test -f "$SIGNED"
 
-      - name: Commit built APK and source ZIP
+          mkdir -p releases
+          cp "$SIGNED" "releases/TitanAudioRepair-${VERSION}-Elite-release.apk"
+          rm -f "releases/TitanAudioRepair-${VERSION}-Elite-source.zip"
+          zip -qr "releases/TitanAudioRepair-${VERSION}-Elite-source.zip" app             -x "app/out/*" "app/signing/*" "*.jks" "*.keystore" "*.p12"
+
+          "$ANDROID_SDK_ROOT/build-tools/35.0.1/apksigner" verify --verbose --print-certs             "releases/TitanAudioRepair-${VERSION}-Elite-release.apk"             > "releases/TitanAudioRepair-${VERSION}-SIGNATURE.txt"
+
+          {
+            sha256sum "releases/TitanAudioRepair-${VERSION}-Elite-release.apk"
+            sha256sum "releases/TitanAudioRepair-${VERSION}-Elite-source.zip"
+          } > "releases/TitanAudioRepair-${VERSION}-SHA256.txt"
+
+          EXPECTED_CERT="$(keytool -printcert -file signing/TitanAudioRepair-release-cert.pem | sed -n 's/.*SHA256: //p' | head -1 | tr -d ':')"
+          ACTUAL_CERT="$(grep 'certificate SHA-256 digest:' "releases/TitanAudioRepair-${VERSION}-SIGNATURE.txt" | awk '{print $NF}')"
+          if [ -n "$EXPECTED_CERT" ] && [ "${EXPECTED_CERT,,}" != "${ACTUAL_CERT,,}" ]; then
+            echo "::error::APK signer certificate does not match persistent release certificate"
+            exit 21
+          fi
+
+      - name: Commit release artifacts
         shell: bash
         run: |
           set -euo pipefail
+          VERSION="$(grep -- '--version-name' app/build.sh | awk '{print $2}')"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add releases/TitanAudioRepair-1.1-*
+          git add "releases/TitanAudioRepair-${VERSION}-"*
           if git diff --cached --quiet; then
             echo "Nothing to commit"
             exit 0
           fi
-          git commit -m "Build Titan Audio Repair 1.1 APK and source"
+          git commit -m "Build Titan Audio Repair ${VERSION} with persistent signing key"
           git push
