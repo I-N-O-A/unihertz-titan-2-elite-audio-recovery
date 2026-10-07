@@ -28,7 +28,7 @@ mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/dex"
   --java "$OUT/gen" \
   --min-sdk-version 31 \
   --target-sdk-version 35 \
-  --version-code 1 \
+  --version-code 2 \
   --version-name 1.1
 
 find "$ROOT/src" "$OUT/gen" -name '*.java' -print0 | \
@@ -37,7 +37,7 @@ find "$ROOT/src" "$OUT/gen" -name '*.java' -print0 | \
 "$BT/d8" --lib "$ANDROID_JAR" --min-api 31 --output "$OUT/dex" $(find "$OUT/classes" -name '*.class')
 cp "$OUT/base.apk" "$OUT/unsigned.apk"
 (cd "$OUT/dex" && zip -q -u "$OUT/unsigned.apk" classes.dex)
-"$BT/zipalign" -f -P 16 4 "$OUT/unsigned.apk" "$OUT/TitanAudioRepair-1.0-aligned-unsigned.apk"
+"$BT/zipalign" -f -P 16 4 "$OUT/unsigned.apk" "$OUT/TitanAudioRepair-1.1-aligned-unsigned.apk"
 
 if [ -n "${KEYSTORE:-}" ]; then
   : "${KEY_ALIAS:?Set KEY_ALIAS}"
@@ -51,10 +51,10 @@ if [ -n "${KEYSTORE:-}" ]; then
     --ks-key-alias "$KEY_ALIAS" \
     --ks-pass env:KEYSTORE_PASS \
     --key-pass env:KEY_PASS \
-    --out "$OUT/TitanAudioRepair-1.0-signed.apk" \
-    "$OUT/TitanAudioRepair-1.0-aligned-unsigned.apk"
-  "$BT/apksigner" verify --verbose --print-certs "$OUT/TitanAudioRepair-1.0-signed.apk"
+    --out "$OUT/TitanAudioRepair-1.1-signed.apk" \
+    "$OUT/TitanAudioRepair-1.1-aligned-unsigned.apk"
+  "$BT/apksigner" verify --verbose --print-certs "$OUT/TitanAudioRepair-1.1-signed.apk"
 else
-  echo "Built unsigned APK: $OUT/TitanAudioRepair-1.0-aligned-unsigned.apk"
+  echo "Built unsigned APK: $OUT/TitanAudioRepair-1.1-aligned-unsigned.apk"
   echo "To sign, set KEYSTORE, KEY_ALIAS, KEYSTORE_PASS and optional KEY_PASS."
 fi
