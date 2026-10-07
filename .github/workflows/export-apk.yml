@@ -1,0 +1,19 @@
+name: Export current APK
+
+on:
+  push:
+    paths:
+      - ".github/workflows/export-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TitanAudioRepair-1.1-Elite
+          path: releases/TitanAudioRepair-1.1-Elite-release.apk
+          if-no-files-found: error
+          retention-days: 30
