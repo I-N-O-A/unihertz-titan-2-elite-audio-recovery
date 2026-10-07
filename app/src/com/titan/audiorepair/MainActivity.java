@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(250,250,250));
         buildUi();
         refreshStatus();
-        append("Titan Audio Repair 1.1 bereit. Diagnose + bestätigter Neustart-Recovery.");
+        append("Titan Audio Repair 1.3 bereit. Neuer MTK Vendor-Reinit-Test.");
     }
 
     @Override protected void onResume() {
@@ -135,7 +135,18 @@ public class MainActivity extends Activity {
         rebootInfo.setPadding(0,dp(6),0,dp(8));
         root.addView(rebootInfo);
 
-        addHeader(root, "Experimente / Diagnose (kein bestätigter Fix)");
+        addHeader(root, "MediaTek Recovery (neu, gezielt)");
+        Button mtk = addButton(root, "MTK VENDOR REINIT", v -> startCommand(RepairService.CMD_MTK_VENDOR, true));
+        mtk.setTextSize(17);
+
+        TextView mtkInfo = new TextView(this);
+        mtkInfo.setText("Neu in 1.3: sendet MediaTeks restarting=true/false-Signal und erzwingt – falls ein zweites physisches Input-Gerät verbunden ist – einen echten Hardware-Routing-Roundtrip, bevor Mic + Speaker automatisch geprüft werden.");
+        mtkInfo.setTextSize(12);
+        mtkInfo.setTextColor(Color.DKGRAY);
+        mtkInfo.setPadding(0,dp(6),0,dp(8));
+        root.addView(mtkInfo);
+
+        addHeader(root, "Alte Experimente / Diagnose");
         Button safe = addButton(root, "SAFE REPAIR testen", v -> startCommand(RepairService.CMD_SAFE, true));
         safe.setTextSize(16);
         Button aggressive = addButton(root, "AGGRESSIVE REPAIR testen", v -> startCommand(RepairService.CMD_AGGRESSIVE, true));
