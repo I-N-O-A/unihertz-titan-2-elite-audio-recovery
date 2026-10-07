@@ -29,7 +29,7 @@ public class RepairService extends Service {
     public static final String CMD_AGGRESSIVE = "AGGRESSIVE REPAIR";
     public static final int RESULT_PROGRESS = 1;
     public static final int RESULT_DONE = 2;
-    public static final int RESULT_ERROR = 3;
+    public static final int RESULT_ERROR = 3;\n    public static final int RESULT_FAULT = 4;
 
     private ResultReceiver rr;
     private AudioManager am;
@@ -573,7 +573,11 @@ public class RepairService extends Service {
                     "MIC result: reads=%d empty=%d samples=%d peak=%d nonZero=%.2f%% RMS first=%.1f last=%.1f route=%s",
                     reads, emptyReads, total, peak, nzPct, rmsFirst, rmsLast, dev(rec.getRoutedDevice())));
 
-            if (rmsFirst > 30 && rmsLast < Math.max(10, rmsFirst * 0.12)) {
+            if (total >= 24000 && peak == 0 && nz == 0) {
+                send(RESULT_FAULT,
+                        "⛔ AUDIO-FEHLER BESTÄTIGT: PCM-Buffer kommen, aber alle Samples sind 0. Neustart erforderlich.",
+                        false);
+            } else if (rmsFirst > 30 && rmsLast < Math.max(10, rmsFirst * 0.12)) {
                 log("⚠ Muster erkannt: Anfangssignal/Spikes → danach Kollaps");
             } else if (total == 0 || (peak < 8 && rmsLast < 3)) {
                 log("⚠ praktisch kein verwertbares Mikrofonsignal");
