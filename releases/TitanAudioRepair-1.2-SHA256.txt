@@ -1,0 +1,4 @@
+da91336a07bd2488345c629764daf0aede75ae5d556f766e6f3088d17c9f37a3  releases/TitanAudioRepair-1.2-Elite-release.apk
+1a34877311be78d83eccc556c6ff77e8bb13ba253ecdddb84b63f16ddd0f7c20  releases/TitanAudioRepair-1.2-Elite-source.zip
+54ac451ebaaf8ab62c8e45d738ea9bd3e57662540c6aeaeb0112d4a52fbda082  signing/TitanAudioRepair-release.p12.enc
+d5be655124abc0a9a5184aaedad4304a1bbc37e80061909baa10259a4ead3227  signing/TitanAudioRepair-release-cert.pem

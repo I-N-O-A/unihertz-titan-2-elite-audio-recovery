@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=Titan Audio Repair Release, O=I-N-O-A Open Source, C=DE
+Signer #1 certificate SHA-256 digest: ceaaf8ce2a4ce5b2c429d9b989fa548b69fc799623a89842e40c11b8c20b7735
+Signer #1 certificate SHA-1 digest: e4988bb402ed847efb2d51967a6fe178b9fab462
+Signer #1 certificate MD5 digest: b7765ea934231b3a0b96a634b926ca85
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: f7a81d36eb5bc3a60a8259efeb563ebf98c3be8d882b0e076829992477d06f1f
+Signer #1 public key SHA-1 digest: 5930ce535e87881a793c2c73856e9823ee5baffb
+Signer #1 public key MD5 digest: e0935fe0d14763d2f9bade06370432c9

@@ -1,0 +1,26 @@
+Alias name: titanrepair
+Creation date: Oct 7, 2026
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=Titan Audio Repair Release, O=I-N-O-A Open Source, C=DE
+Issuer: CN=Titan Audio Repair Release, O=I-N-O-A Open Source, C=DE
+Serial number: 7bd7f08cda0571df
+Valid from: Wed Oct 07 18:20:47 UTC 2026 until: Fri Sep 29 18:20:47 UTC 2056
+Certificate fingerprints:
+	 SHA1: E4:98:8B:B4:02:ED:84:7E:FB:2D:51:96:7A:6F:E1:78:B9:FA:B4:62
+	 SHA256: CE:AA:F8:CE:2A:4C:E5:B2:C4:29:D9:B9:89:FA:54:8B:69:FC:79:96:23:A8:98:42:E4:0C:11:B8:C2:0B:77:35
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 3072-bit RSA key
+Version: 3
+
+Extensions: 
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: 37 65 61 13 6B 02 D6 F6   21 8E CB D5 42 51 36 B3  7ea.k...!...BQ6.
+0010: 43 4F 3F C5                                        CO?.
+]
+]
+
