@@ -7,6 +7,7 @@ Minimal standalone Android app for testing/recovering the observed Unihertz Tita
 ```text
 android.permission.RECORD_AUDIO
 android.permission.MODIFY_AUDIO_SETTINGS
+android.permission.POST_NOTIFICATIONS (Android 13+, optional notification-sound test)
 ```
 
 ## Main actions
@@ -17,6 +18,15 @@ android.permission.MODIFY_AUDIO_SETTINGS
 - **AGGRESSIVE REPAIR** — additionally exercises communication mode, audio focus, mic mute pulse, full-duplex speaker/earpiece paths, AEC/NS/AGC and an experimental AOSP-style `screen_state` parameter pulse.
 
 The service runs in an isolated app process (`:repair`) so the UI can remain responsive if a vendor audio call blocks.
+
+## v1.4: notification audio and UI-only soft refresh
+
+- Manual real Android notification with audible `USAGE_NOTIFICATION` channel; permission requested on Android 13+.
+- The notification is canceled after 8 s, and MIC PROBE runs automatically after 2.6 s.
+- Optional Accessibility-only notifications/quick-settings refresh, then the notification sound test.
+- No full reboot, SystemUI process restart or Audio HAL restart in the soft-recovery tests.
+- Mic recovery clears the red alert only after meaningful non-zero PCM input; speaker output needs manual audible confirmation.
+- Silent mode, DND and channel settings can suppress notification sounds; posting is not proof of playback.
 
 ## Safety choices
 

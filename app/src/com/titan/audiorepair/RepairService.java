@@ -32,6 +32,7 @@ public class RepairService extends Service {
     public static final int RESULT_DONE = 2;
     public static final int RESULT_ERROR = 3;
     public static final int RESULT_FAULT = 4;
+    public static final int RESULT_MIC_ACTIVE = 5;
 
     private ResultReceiver rr;
     private AudioManager am;
@@ -721,6 +722,8 @@ public class RepairService extends Service {
                 log("⚠ praktisch kein verwertbares Mikrofonsignal");
             } else {
                 log("Mic-Probe liefert weiterhin messbare Samples");
+                if (total >= 24000 && peak >= 8 && nz > 0)
+                    send(RESULT_MIC_ACTIVE, "✓ MIC-AKTIV: wieder messbare PCM-Werte (Speaker separat testen).", false);
             }
         } catch (Throwable t) {
             log("MIC PROBE Fehler: " + shortErr(t));

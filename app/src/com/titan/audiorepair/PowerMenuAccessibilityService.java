@@ -2,9 +2,12 @@ package com.titan.audiorepair;
 
 import android.accessibilityservice.AccessibilityService;
 import android.view.accessibility.AccessibilityEvent;
+import android.os.Handler;
+import android.os.Looper;
 
 public class PowerMenuAccessibilityService extends AccessibilityService {
     private static volatile PowerMenuAccessibilityService instance;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
@@ -26,6 +29,16 @@ public class PowerMenuAccessibilityService extends AccessibilityService {
 
     public static boolean isConnected() {
         return instance != null;
+    }
+
+    /** Refresh Android's notification and quick-settings panels; NOT a SystemUI restart. */
+    public static boolean softRefreshUi() {
+        PowerMenuAccessibilityService s = instance;
+        if (s == null || !s.performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)) return false;
+        s.uiHandler.postDelayed(() -> s.performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE), 650);
+        s.uiHandler.postDelayed(() -> s.performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS), 1050);
+        s.uiHandler.postDelayed(() -> s.performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE), 1800);
+        return true;
     }
 
     public static boolean openPowerMenu() {
