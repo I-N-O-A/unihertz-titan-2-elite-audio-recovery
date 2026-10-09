@@ -23,7 +23,7 @@ The service runs in an isolated app process (`:repair`) so the UI can remain res
 
 - Manual real Android notification with audible `USAGE_NOTIFICATION` channel; permission requested on Android 13+.
 - The notification is canceled after 8 s, and MIC PROBE runs automatically after 2.6 s.
-- Optional Accessibility-only notifications/quick-settings refresh, then the notification sound test.
+- Optional Accessibility-only notifications/quick-settings refresh, either followed by a MIC PROBE **without a sound**, or by the notification sound test. This enables an A/B comparison between UI-only and notification-triggered audio wakeup.
 - No full reboot, SystemUI process restart or Audio HAL restart in the soft-recovery tests.
 - Mic recovery clears the red alert only after meaningful non-zero PCM input; speaker output needs manual audible confirmation.
 - Silent mode, DND and channel settings can suppress notification sounds; posting is not proof of playback.
