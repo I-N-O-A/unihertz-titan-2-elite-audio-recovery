@@ -142,7 +142,8 @@ public class MainActivity extends Activity {
 
         addHeader(root, "Soft-Recovery (ohne Reboot)");
         addButton(root, "BENACHRICHTIGUNGSTON → MIC TEST", v -> notificationAudioTest());
-        addButton(root, "ANDROID SOFT-RESET (UI + TON)", v -> uiSoftReset());
+        addButton(root, "NUR UI-SOFT-RESET (OHNE TON)", v -> uiSoftReset(false));
+        addButton(root, "ANDROID SOFT-RESET (UI + TON)", v -> uiSoftReset(true));
         TextView softNote = new TextView(this);
         softNote.setText("Testet den Android-Benachrichtigungstonpfad und danach das Mikrofon. UI-Soft-Reset aktualisiert nur die Android-Systemleisten; SystemUI-Prozess und Handy werden NICHT neu gestartet.");
         softNote.setTextSize(12);
@@ -371,7 +372,7 @@ public class MainActivity extends Activity {
     }
 
     /** UI chrome refresh only; neither SystemUI nor the device is restarted. */
-    private void uiSoftReset() {
+    private void uiSoftReset(boolean withTone) {
         if (running) {
             append("UI-Soft-Reset: Repair-Vorgang läuft noch.");
             return;
@@ -389,7 +390,14 @@ public class MainActivity extends Activity {
         }
         append("▶ UI-Soft-Refresh: Systemleisten werden geöffnet und wieder geschlossen.");
         append("Wichtig: Kein Neustart von SystemUI, Audio-HAL oder Android.");
-        handler.postDelayed(this::notificationAudioTest, 2400);
+        if (withTone) {
+            handler.postDelayed(this::notificationAudioTest, 2400);
+        } else {
+            handler.postDelayed(() -> {
+                append("Nur UI-Refresh abgeschlossen. MIC PROBE ohne Benachrichtigungston.");
+                startCommand(RepairService.CMD_MIC_PROBE, true);
+            }, 2400);
+        }
     }
 
     private void killRepairProcess() {
