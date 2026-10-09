@@ -1,0 +1,47 @@
+name: Validate Titan Audio Repair source
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/validate-v1.4.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Ensure SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -name sdkmanager | sort | tail -1)"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.1"
+      - name: Compile v1.4 without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x app/build.sh
+          app/build.sh "$ANDROID_SDK_ROOT"
+          test -s app/out/TitanAudioRepair-1.4-aligned-unsigned.apk
+          zip -qr TitanAudioRepair-1.4-source.zip app -x 'app/out/*' '*.p12' '*.keystore' '*.jks'
+      - name: Publish source and unsigned compile output
+        uses: actions/upload-artifact@v4
+        with:
+          name: TitanAudioRepair-1.4-compile-check
+          path: |
+            TitanAudioRepair-1.4-source.zip
+            app/out/TitanAudioRepair-1.4-aligned-unsigned.apk
+          retention-days: 30
