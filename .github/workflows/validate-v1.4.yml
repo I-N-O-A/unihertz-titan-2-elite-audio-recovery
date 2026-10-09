@@ -37,6 +37,14 @@ jobs:
           app/build.sh "$ANDROID_SDK_ROOT"
           test -s app/out/TitanAudioRepair-1.4-aligned-unsigned.apk
           zip -qr TitanAudioRepair-1.4-source.zip app -x 'app/out/*' '*.p12' '*.keystore' '*.jks'
+      - name: Package public encrypted signing material and SDK signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p local-sign-tools
+          cp signing/TitanAudioRepair-release.p12.enc local-sign-tools/
+          cp "$ANDROID_SDK_ROOT/build-tools/35.0.1/lib/apksigner.jar" local-sign-tools/
+          test -s local-sign-tools/apksigner.jar
       - name: Publish source and unsigned compile output
         uses: actions/upload-artifact@v4
         with:
@@ -44,4 +52,6 @@ jobs:
           path: |
             TitanAudioRepair-1.4-source.zip
             app/out/TitanAudioRepair-1.4-aligned-unsigned.apk
+            local-sign-tools/TitanAudioRepair-release.p12.enc
+            local-sign-tools/apksigner.jar
           retention-days: 30
